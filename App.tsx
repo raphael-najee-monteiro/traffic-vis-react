@@ -93,21 +93,28 @@ function convertNodesToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>
 }
 
 function convertLinesToGeoJSON(lines: any[], key: string): Feature<LineString, GeoJsonProperties>[] {
-    console.log(lines[2][key]);
-    return lines.map(line => ({
-        type: 'Feature',
-        geometry: {
-            type: 'LineString',
-            coordinates: line[key]
-                .replace('LINESTRING (', '')
-                .replace(')', '')
-                .split(',')
-                .map(pair => pair.split(' ').map(Number)).reverse()
-        },
-        properties: {
-            ...line
-        }
-    }));
+    return lines.map(line => {
+        // Extract the LINESTRING part and remove 'LINESTRING (' and ')'
+        const coordinatesString = line[key]
+            .replace('LINESTRING (', '')
+            .replace(')', '');
+
+        // Split the coordinates by commas, then by spaces, reverse each pair, and map to numbers
+        const coordinates = coordinatesString
+            .split(', ')
+            .map(pair => pair.split(' ').map(Number));  // Reverse each [lat, lon] pair
+
+        return {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates
+            },
+            properties: {
+                ...line
+            }
+        };
+    });
 }
 
 function App() {
@@ -194,8 +201,7 @@ function App() {
 
     return (
         <DeckGL
-            //layeres={layers}
-            layers={layers[0]}
+            layers={layers}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
         >
