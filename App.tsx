@@ -6,6 +6,7 @@ import { Map } from 'react-map-gl/maplibre';
 import { load } from '@loaders.gl/core';
 import { CSVLoader } from '@loaders.gl/csv';
 import { MapViewState } from 'deck.gl';
+import { scaleLinear } from 'd3-scale'; // Import d3-scale for color interpolation
 
 // Define the URLs to the CSV files
 const DATA_URLS = {
@@ -78,7 +79,7 @@ function App() {
     const [showNodes, setShowNodes] = useState(false);
     const [showEdges, setShowEdges] = useState(true);
     const [showLanes, setShowLanes] = useState(false);
-    const [showConnections, setShowConnections] = useState(false);
+    const [showConnections, setShowConnections] = useState(true);
 
     const [sliderValue, setSliderValue] = useState(18000); // Default to 5 AM (in seconds)
 
@@ -103,7 +104,8 @@ function App() {
 
             const parsedEdges = edgesData.data.map(row => ({
                 ...row,
-                line_geom: row.line_geom
+                line_geom: row.line_geom,
+                speed: parseFloat(row.speed) // Assuming speed is a property in the CSV
             }));
             setEdges(convertLinesToGeoJSON(parsedEdges, 'line_geom'));
 
@@ -147,6 +149,16 @@ function App() {
         }
     };
 
+    // Create a color scale for the edges based on the speed attribute
+    const getColorFromSpeed = (speed) => {
+        const colorScale = scaleLinear()
+            .domain([30, 120]) // Example domain for speed, adjust as necessary
+            .range([[0, 0, 255], [255, 0, 0]]) // Blue to red gradient
+            .clamp(true);
+
+        return colorScale(speed);
+    };
+
     const layers = [
         showNodes && new GeoJsonLayer({
             id: 'nodes-layer',
@@ -160,7 +172,7 @@ function App() {
         showEdges && new GeoJsonLayer({
             id: 'edges-layer',
             data: edges,
-            getLineColor: [0, 255, 0],
+            getLineColor: d => getColorFromSpeed(d.properties.speed),
             getLineWidth: 2,
             pickable: true,
             onClick: info => handleOnClick(info, 'Edge')
