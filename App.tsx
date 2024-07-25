@@ -5,35 +5,28 @@ import { GeoJsonLayer } from '@deck.gl/layers';
 import { Map } from 'react-map-gl/maplibre';
 import { load } from '@loaders.gl/core';
 import { CSVLoader } from '@loaders.gl/csv';
-import { Feature, Point, GeoJsonProperties } from 'geojson';
-import {MapViewState} from "deck.gl";
+import { MapViewState } from 'deck.gl';
 
-// Define the URL to the nodes CSV file
-const DATA_URL = {
-    NODES: 'csv/Zurich_2024_nodes.csv' // Update this path
+// Define the URLs to the CSV files
+const DATA_URLS = {
+    NODES: 'csv/nodes.csv',
+    EDGES: 'csv/edges.csv',
+    LANES: 'csv/lanes.csv',
+    CONNECTIONS: 'csv/connections.csv',
+    EDGE_DATA: 'csv/edge_data.csv'
 };
 
 const INITIAL_VIEW_STATE: MapViewState = {
-    latitude: 47.4,
+    latitude: 47.38,
     longitude: 8.55,
-    zoom: 13,
+    zoom: 11,
     minZoom: 1,
     maxZoom: 20
 };
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json';
 
-// Define the structure of Node data
-type Node = {
-    node_id: string;
-    lon: number;
-    lat: number;
-    type: string;
-    node_geom: string;
-};
-
-// Function to convert CSV data to GeoJSON format
-function convertToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>[] {
+function convertNodesToGeoJSON(nodes) {
     return nodes.map(node => ({
         type: 'Feature',
         geometry: {
@@ -48,81 +41,211 @@ function convertToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>[] {
     }));
 }
 
-function renderTooltip({
-                           hoverInfo
-                       }: {
-    hoverInfo?: any; // Adjust type based on your hoverInfo structure
-}) {
-    if (!hoverInfo?.object) {
-        return null;
-    }
+function convertLinesToGeoJSON(lines, key) {
+    return lines.map(line => {
+        const coordinatesString = line[key]
+            .replace('LINESTRING (', '')
+            .replace(')', '');
 
-    const { object, x, y } = hoverInfo;
-    const { properties } = object;
-    const content = (
-        <div>
-            Node ID: <b>{properties.node_id}</b><br/>
-            Type: <b>{properties.type}</b><br/>
-            Geometry: <b>{properties.node_geom}</b>
-        </div>
-    );
+        const coordinates = coordinatesString
+            .split(', ')
+            .map(pair => pair.split(' ').map(Number));
 
-    return (
-        <div className="tooltip" style={{ left: x, top: y }}>
-            {content}
-        </div>
-    );
+        return {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates
+            },
+            properties: {
+                ...line
+            }
+        };
+    });
 }
 
 function App() {
-    const [nodes, setNodes] = useState<Feature<Point, GeoJsonProperties>[]>([]);
-    const [hoverInfo, setHoverInfo] = useState<any>();
+    const [nodes, setNodes] = useState([]);
+    const [edges, setEdges] = useState([]);
+    const [lanes, setLanes] = useState([]);
+    const [connections, setConnections] = useState([]);
+    const [edgeData, setEdgeData] = useState([]);
+
+    const [clickInfo, setClickInfo] = useState(null);
+    const [infoBoxVisible, setInfoBoxVisible] = useState(false);
+    const [elementType, setElementType] = useState('');
+
+    const [showNodes, setShowNodes] = useState(false);
+    const [showEdges, setShowEdges] = useState(true);
+    const [showLanes, setShowLanes] = useState(false);
+    const [showConnections, setShowConnections] = useState(false);
 
     useEffect(() => {
-        // Load the nodes data from CSV
         async function fetchData() {
-            const data = await load(DATA_URL.NODES, CSVLoader);
+            const [nodesData, edgesData, lanesData, connectionsData, edgeData] = await Promise.all([
+                load(DATA_URLS.NODES, CSVLoader),
+                load(DATA_URLS.EDGES, CSVLoader),
+                load(DATA_URLS.LANES, CSVLoader),
+                load(DATA_URLS.CONNECTIONS, CSVLoader),
+                load(DATA_URLS.EDGE_DATA, CSVLoader)
+            ]);
 
-            // Ensure data is in the correct format and map to Node type
-            const nodesData = (data as unknown as Node[]).map(row => ({
+            const parsedNodes = nodesData.data.map(row => ({
                 node_id: row.node_id,
-                lon: parseFloat(String(row.lon)),
-                lat: parseFloat(String(row.lat)),
+                lon: parseFloat(row.lon),
+                lat: parseFloat(row.lat),
                 type: row.type,
                 node_geom: row.node_geom
             }));
+            setNodes(convertNodesToGeoJSON(parsedNodes));
 
-            const geoJsonData = convertToGeoJSON(nodesData);
-            setNodes(geoJsonData);
+            const parsedEdges = edgesData.data.map(row => ({
+                ...row,
+                line_geom: row.line_geom
+            }));
+            setEdges(convertLinesToGeoJSON(parsedEdges, 'line_geom'));
+
+            const parsedLanes = lanesData.data.map(row => ({
+                ...row,
+                line_geom: row.line_geom
+            }));
+            setLanes(convertLinesToGeoJSON(parsedLanes, 'line_geom'));
+
+            const parsedConnections = connectionsData.data.map(row => ({
+                ...row,
+                line_geom: row.line_geom
+            }));
+            setConnections(convertLinesToGeoJSON(parsedConnections, 'line_geom'));
+
+            const parsedEdgeData = edgeData.data.map(row => ({
+                ...row
+            }));
+            setEdgeData(parsedEdgeData);
         }
+
         fetchData();
     }, []);
 
+    const handleOnClick = (info, type) => {
+        if (info.object) {
+            let clickProperties = { ...info.object.properties };
+
+            if (type === 'Edge') {
+                const edgeId = clickProperties.edge_id;
+                const edgeDataProperties = edgeData.find(data => data.edge_id === edgeId);
+
+                if (edgeDataProperties) {
+                    clickProperties = { ...clickProperties, ...edgeDataProperties };
+                }
+            }
+
+            setClickInfo(clickProperties);
+            setElementType(type);
+            setInfoBoxVisible(true);
+        }
+    };
+
     const layers = [
-        new GeoJsonLayer({
+        showNodes && new GeoJsonLayer({
             id: 'nodes-layer',
             data: nodes,
-            pointRadiusMinPixels: 10,
-            getPointRadius: 10,
-            getFillColor: [255, 0, 0, 255],
+            pointRadiusMinPixels: 5,
+            getPointRadius: 5,
+            getFillColor: [255, 0, 0],
             pickable: true,
-            onHover: setHoverInfo
+            onClick: info => handleOnClick(info, 'Node')
+        }),
+        showEdges && new GeoJsonLayer({
+            id: 'edges-layer',
+            data: edges,
+            getLineColor: [0, 255, 0],
+            getLineWidth: 2,
+            pickable: true,
+            onClick: info => handleOnClick(info, 'Edge')
+        }),
+        showLanes && new GeoJsonLayer({
+            id: 'lanes-layer',
+            data: lanes,
+            getLineColor: [0, 0, 255],
+            getLineWidth: 2,
+            pickable: true,
+            onClick: info => handleOnClick(info, 'Lane')
+        }),
+        showConnections && new GeoJsonLayer({
+            id: 'connections-layer',
+            data: connections,
+            getLineColor: [255, 255, 0],
+            getLineWidth: 2,
+            pickable: true,
+            onClick: info => handleOnClick(info, 'Connection')
         })
-    ];
+    ].filter(Boolean);
 
     return (
-        <DeckGL
-            layers={layers}
-            initialViewState={INITIAL_VIEW_STATE}
-            controller={true}
-        >
-            <Map reuseMaps mapStyle={MAP_STYLE} />
-            {renderTooltip({ hoverInfo })}
-        </DeckGL>
+        <div>
+            <DeckGL
+                layers={layers}
+                initialViewState={INITIAL_VIEW_STATE}
+                controller={true}
+            >
+                <Map reuseMaps mapStyle={MAP_STYLE} />
+            </DeckGL>
+
+            <div className="checkBoxGroup">
+                <label>
+                    <input
+                        type="checkbox"
+                        checked={showNodes}
+                        onChange={() => setShowNodes(!showNodes)}
+                    />
+                    Nodes
+                </label>
+                <label style={{ marginLeft: '10px' }}>
+                    <input
+                        type="checkbox"
+                        checked={showEdges}
+                        onChange={() => setShowEdges(!showEdges)}
+                    />
+                    Edges
+                </label>
+                <label style={{ marginLeft: '10px' }}>
+                    <input
+                        type="checkbox"
+                        checked={showLanes}
+                        onChange={() => setShowLanes(!showLanes)}
+                    />
+                    Lanes
+                </label>
+                <label style={{ marginLeft: '10px' }}>
+                    <input
+                        type="checkbox"
+                        checked={showConnections}
+                        onChange={() => setShowConnections(!showConnections)}
+                    />
+                    Connections
+                </label>
+            </div>
+
+            {infoBoxVisible && (
+                <div className="infoBox">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3>{elementType} Information</h3>
+                        <button onClick={() => setInfoBoxVisible(false)}>Close</button>
+                    </div>
+                    <ul>
+                        {Object.entries(clickInfo).map(([key, value]) => (
+                            <li key={key}>
+                                <strong>{key}:</strong> {value}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
     );
 }
 
-export async function renderToDOM(container: HTMLDivElement) {
+export function renderToDOM(container) {
     const root = createRoot(container);
     root.render(<App />);
 }
