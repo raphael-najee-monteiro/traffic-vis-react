@@ -1,12 +1,12 @@
 # Traffic Visualization
 
-A React Webapp with DeckGL
+A React Webapp with DeckGL for visualizing road traffic data
 
+![Screenshot](public/img.png)
 
-
-### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
+### Run
+```bash
+npm i
+npm start
+```
 
