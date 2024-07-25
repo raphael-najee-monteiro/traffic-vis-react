@@ -274,7 +274,7 @@ function App() {
                             <div>Time: {new Date(sliderValue * 1000).toISOString().substr(11, 5)}</div>
                         </div>
                     )}
-                    <ul>
+                    <ul className="data-points">
                         {Object.entries(clickInfo).map(([key, value]) => (
                             <li key={key}>
                                 <strong>{key}:</strong> {value}
