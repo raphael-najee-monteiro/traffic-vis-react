@@ -94,15 +94,13 @@ function convertNodesToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>
 
 function convertLinesToGeoJSON(lines: any[], key: string): Feature<LineString, GeoJsonProperties>[] {
     return lines.map(line => {
-        // Extract the LINESTRING part and remove 'LINESTRING (' and ')'
         const coordinatesString = line[key]
             .replace('LINESTRING (', '')
             .replace(')', '');
 
-        // Split the coordinates by commas, then by spaces, reverse each pair, and map to numbers
         const coordinates = coordinatesString
             .split(', ')
-            .map(pair => pair.split(' ').map(Number));  // Reverse each [lat, lon] pair
+            .map(pair => pair.split(' ').map(Number)); // Reverse each [lat, lon] pair
 
         return {
             type: 'Feature',
@@ -122,6 +120,10 @@ function App() {
     const [edges, setEdges] = useState<Feature<LineString, GeoJsonProperties>[]>([]);
     const [lanes, setLanes] = useState<Feature<LineString, GeoJsonProperties>[]>([]);
     const [connections, setConnections] = useState<Feature<LineString, GeoJsonProperties>[]>([]);
+    const [showNodes, setShowNodes] = useState<boolean>(true);
+    const [showEdges, setShowEdges] = useState<boolean>(true);
+    const [showLanes, setShowLanes] = useState<boolean>(true);
+    const [showConnections, setShowConnections] = useState<boolean>(true);
 
     useEffect(() => {
         async function fetchData() {
@@ -163,8 +165,9 @@ function App() {
         fetchData();
     }, []);
 
+    // Determine which layers to show based on checkbox states
     const layers = [
-        new GeoJsonLayer({
+        showNodes && new GeoJsonLayer({
             id: 'nodes-layer',
             data: nodes,
             pointRadiusMinPixels: 5,
@@ -173,7 +176,7 @@ function App() {
             pickable: true,
             onHover: info => console.log(info)
         }),
-        new GeoJsonLayer({
+        showEdges && new GeoJsonLayer({
             id: 'edges-layer',
             data: edges,
             getLineColor: [0, 255, 0],
@@ -181,7 +184,7 @@ function App() {
             pickable: true,
             onHover: info => console.log(info)
         }),
-        new GeoJsonLayer({
+        showLanes && new GeoJsonLayer({
             id: 'lanes-layer',
             data: lanes,
             getLineColor: [0, 0, 255],
@@ -189,7 +192,7 @@ function App() {
             pickable: true,
             onHover: info => console.log(info)
         }),
-        new GeoJsonLayer({
+        showConnections && new GeoJsonLayer({
             id: 'connections-layer',
             data: connections,
             getLineColor: [255, 255, 0],
@@ -197,16 +200,53 @@ function App() {
             pickable: true,
             onHover: info => console.log(info)
         })
-    ];
+    ].filter(Boolean); // Remove undefined layers
 
     return (
-        <DeckGL
-            layers={layers}
-            initialViewState={INITIAL_VIEW_STATE}
-            controller={true}
-        >
-            <Map reuseMaps mapStyle={MAP_STYLE} />
-        </DeckGL>
+        <div>
+            <DeckGL
+                layers={layers}
+                initialViewState={INITIAL_VIEW_STATE}
+                controller={true}
+            >
+                <Map reuseMaps mapStyle={MAP_STYLE} />
+            </DeckGL>
+
+            <div className="checkBoxGroup">
+                <label>
+                    <input
+                        type="checkbox"
+                        checked={showNodes}
+                        onChange={() => setShowNodes(!showNodes)}
+                    />
+                    Nodes
+                </label>
+                <label style={{ marginLeft: '10px' }}>
+                    <input
+                        type="checkbox"
+                        checked={showEdges}
+                        onChange={() => setShowEdges(!showEdges)}
+                    />
+                    Edges
+                </label>
+                <label style={{ marginLeft: '10px' }}>
+                    <input
+                        type="checkbox"
+                        checked={showLanes}
+                        onChange={() => setShowLanes(!showLanes)}
+                    />
+                    Lanes
+                </label>
+                <label style={{ marginLeft: '10px' }}>
+                    <input
+                        type="checkbox"
+                        checked={showConnections}
+                        onChange={() => setShowConnections(!showConnections)}
+                    />
+                    Connections
+                </label>
+            </div>
+        </div>
     );
 }
 
