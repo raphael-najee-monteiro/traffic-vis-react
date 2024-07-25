@@ -12,7 +12,8 @@ const DATA_URLS = {
     NODES: 'csv/nodes.csv',
     EDGES: 'csv/edges.csv',
     LANES: 'csv/lanes.csv',
-    CONNECTIONS: 'csv/connections.csv'
+    CONNECTIONS: 'csv/connections.csv',
+    EDGE_DATA: 'csv/edge_data.csv'
 };
 
 const INITIAL_VIEW_STATE: MapViewState = {
@@ -48,7 +49,7 @@ function convertLinesToGeoJSON(lines, key) {
 
         const coordinates = coordinatesString
             .split(', ')
-            .map(pair => pair.split(' ').map(Number)); // Reverse each [lat, lon] pair
+            .map(pair => pair.split(' ').map(Number));
 
         return {
             type: 'Feature',
@@ -68,21 +69,25 @@ function App() {
     const [edges, setEdges] = useState([]);
     const [lanes, setLanes] = useState([]);
     const [connections, setConnections] = useState([]);
-    const [hoverInfo, setHoverInfo] = useState(null);
+    const [edgeData, setEdgeData] = useState([]);
+
+    const [clickInfo, setClickInfo] = useState(null);
     const [infoBoxVisible, setInfoBoxVisible] = useState(false);
     const [elementType, setElementType] = useState('');
-    const [showNodes, setShowNodes] = useState(true);
-    const [showEdges, setShowEdges] = useState(false);
+
+    const [showNodes, setShowNodes] = useState(false);
+    const [showEdges, setShowEdges] = useState(true);
     const [showLanes, setShowLanes] = useState(false);
     const [showConnections, setShowConnections] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
-            const [nodesData, edgesData, lanesData, connectionsData] = await Promise.all([
+            const [nodesData, edgesData, lanesData, connectionsData, edgeData] = await Promise.all([
                 load(DATA_URLS.NODES, CSVLoader),
                 load(DATA_URLS.EDGES, CSVLoader),
                 load(DATA_URLS.LANES, CSVLoader),
-                load(DATA_URLS.CONNECTIONS, CSVLoader)
+                load(DATA_URLS.CONNECTIONS, CSVLoader),
+                load(DATA_URLS.EDGE_DATA, CSVLoader)
             ]);
 
             const parsedNodes = nodesData.data.map(row => ({
@@ -111,6 +116,11 @@ function App() {
                 line_geom: row.line_geom
             }));
             setConnections(convertLinesToGeoJSON(parsedConnections, 'line_geom'));
+
+            const parsedEdgeData = edgeData.data.map(row => ({
+                ...row
+            }));
+            setEdgeData(parsedEdgeData);
         }
 
         fetchData();
@@ -118,7 +128,18 @@ function App() {
 
     const handleOnClick = (info, type) => {
         if (info.object) {
-            setHoverInfo(info.object.properties);
+            let clickProperties = { ...info.object.properties };
+
+            if (type === 'Edge') {
+                const edgeId = clickProperties.edge_id;
+                const edgeDataProperties = edgeData.find(data => data.edge_id === edgeId);
+
+                if (edgeDataProperties) {
+                    clickProperties = { ...clickProperties, ...edgeDataProperties };
+                }
+            }
+
+            setClickInfo(clickProperties);
             setElementType(type);
             setInfoBoxVisible(true);
         }
@@ -212,7 +233,7 @@ function App() {
                         <button onClick={() => setInfoBoxVisible(false)}>Close</button>
                     </div>
                     <ul>
-                        {Object.entries(hoverInfo).map(([key, value]) => (
+                        {Object.entries(clickInfo).map(([key, value]) => (
                             <li key={key}>
                                 <strong>{key}:</strong> {value}
                             </li>
