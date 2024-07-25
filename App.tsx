@@ -5,12 +5,15 @@ import { GeoJsonLayer } from '@deck.gl/layers';
 import { Map } from 'react-map-gl/maplibre';
 import { load } from '@loaders.gl/core';
 import { CSVLoader } from '@loaders.gl/csv';
-import { Feature, Point, GeoJsonProperties } from 'geojson';
-import {MapViewState} from "deck.gl";
+import { Feature, LineString, Point, GeoJsonProperties } from 'geojson';
+import { MapViewState } from "deck.gl";
 
-// Define the URL to the nodes CSV file
-const DATA_URL = {
-    NODES: 'csv/Zurich_2024_nodes.csv' // Update this path
+// Define the URLs to the CSV files
+const DATA_URLS = {
+    NODES: 'csv/nodes.csv',
+    EDGES: 'csv/edges.csv',
+    LANES: 'csv/lanes.csv',
+    CONNECTIONS: 'csv/connections.csv'
 };
 
 const INITIAL_VIEW_STATE: MapViewState = {
@@ -23,7 +26,6 @@ const INITIAL_VIEW_STATE: MapViewState = {
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json';
 
-// Define the structure of Node data
 type Node = {
     node_id: string;
     lon: number;
@@ -32,8 +34,50 @@ type Node = {
     node_geom: string;
 };
 
-// Function to convert CSV data to GeoJSON format
-function convertToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>[] {
+type Edge = {
+    edge_id: string;
+    name: string;
+    from_node: string;
+    to_node: string;
+    num_lanes: number;
+    speed: number;
+    priority: number;
+    type: string;
+    line_geom: string;
+};
+
+type Lane = {
+    lane_id: string;
+    name: string;
+    lane_index: number;
+    width: number;
+    allow_vehicle: boolean;
+    allow_car: boolean;
+    allow_bus: boolean;
+    allow_bike: boolean;
+    priority: number;
+    speed: number;
+    from_node: string;
+    to_node: string;
+    line_type: string;
+    line_geom: string;
+};
+
+type Connection = {
+    conn_id: string;
+    from_edge: string;
+    to_edge: string;
+    from_lane: string;
+    from_lane_index: number;
+    to_lane: string;
+    to_lane_index: number;
+    cont_pos: string;
+    status: string;
+    direction: string;
+    line_geom: string;
+};
+
+function convertNodesToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>[] {
     return nodes.map(node => ({
         type: 'Feature',
         geometry: {
@@ -48,52 +92,64 @@ function convertToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>[] {
     }));
 }
 
-function renderTooltip({
-                           hoverInfo
-                       }: {
-    hoverInfo?: any; // Adjust type based on your hoverInfo structure
-}) {
-    if (!hoverInfo?.object) {
-        return null;
-    }
-
-    const { object, x, y } = hoverInfo;
-    const { properties } = object;
-    const content = (
-        <div>
-            Node ID: <b>{properties.node_id}</b><br/>
-            Type: <b>{properties.type}</b><br/>
-            Geometry: <b>{properties.node_geom}</b>
-        </div>
-    );
-
-    return (
-        <div className="tooltip" style={{ left: x, top: y }}>
-            {content}
-        </div>
-    );
+function convertLinesToGeoJSON(lines: any[], key: string): Feature<LineString, GeoJsonProperties>[] {
+    return lines.map(line => ({
+        type: 'Feature',
+        geometry: {
+            type: 'LineString',
+            coordinates: line[key]
+                .replace('LINESTRING (', '')
+                .replace(')', '')
+                .split(',')
+                .map(pair => pair.split(' ').map(Number))
+        },
+        properties: {
+            ...line
+        }
+    }));
 }
 
 function App() {
     const [nodes, setNodes] = useState<Feature<Point, GeoJsonProperties>[]>([]);
-    const [hoverInfo, setHoverInfo] = useState<any>();
+    const [edges, setEdges] = useState<Feature<LineString, GeoJsonProperties>[]>([]);
+    const [lanes, setLanes] = useState<Feature<LineString, GeoJsonProperties>[]>([]);
+    const [connections, setConnections] = useState<Feature<LineString, GeoJsonProperties>[]>([]);
 
     useEffect(() => {
-        // Load the nodes data from CSV
         async function fetchData() {
-            const data = await load(DATA_URL.NODES, CSVLoader);
+            const [nodesData, edgesData, lanesData, connectionsData] = await Promise.all([
+                load(DATA_URLS.NODES, CSVLoader),
+                load(DATA_URLS.EDGES, CSVLoader),
+                load(DATA_URLS.LANES, CSVLoader),
+                load(DATA_URLS.CONNECTIONS, CSVLoader)
+            ]);
 
-            // Ensure data is in the correct format and map to Node type
-            const nodesData = (data as unknown as Node[]).map(row => ({
+            const parsedNodes = (nodesData as unknown as Node[]).map((row: Node) => ({
                 node_id: row.node_id,
                 lon: parseFloat(String(row.lon)),
                 lat: parseFloat(String(row.lat)),
                 type: row.type,
                 node_geom: row.node_geom
             }));
+            setNodes(convertNodesToGeoJSON(parsedNodes));
 
-            const geoJsonData = convertToGeoJSON(nodesData);
-            setNodes(geoJsonData);
+            const parsedEdges = (edgesData as unknown as Edge[]).map((row: Edge) => ({
+                ...row,
+                line_geom: row.line_geom
+            }));
+            setEdges(convertLinesToGeoJSON(parsedEdges, 'line_geom'));
+
+            const parsedLanes = (lanesData as unknown as Lane[]).map((row: Lane) => ({
+                ...row,
+                line_geom: row.line_geom
+            }));
+            setLanes(convertLinesToGeoJSON(parsedLanes, 'line_geom'));
+
+            const parsedConnections = (connectionsData as unknown as Connection[]).map((row: Connection) => ({
+                ...row,
+                line_geom: row.line_geom
+            }));
+            setConnections(convertLinesToGeoJSON(parsedConnections, 'line_geom'));
         }
         fetchData();
     }, []);
@@ -102,11 +158,35 @@ function App() {
         new GeoJsonLayer({
             id: 'nodes-layer',
             data: nodes,
-            pointRadiusMinPixels: 10,
-            getPointRadius: 10,
-            getFillColor: [255, 0, 0, 255],
+            pointRadiusMinPixels: 5,
+            getPointRadius: 5,
+            getFillColor: [255, 0, 0],
             pickable: true,
-            onHover: setHoverInfo
+            onHover: info => console.log(info)
+        }),
+        new GeoJsonLayer({
+            id: 'edges-layer',
+            data: edges,
+            getLineColor: [0, 255, 0],
+            getLineWidth: 2,
+            pickable: true,
+            onHover: info => console.log(info)
+        }),
+        new GeoJsonLayer({
+            id: 'lanes-layer',
+            data: lanes,
+            getLineColor: [0, 0, 255],
+            getLineWidth: 2,
+            pickable: true,
+            onHover: info => console.log(info)
+        }),
+        new GeoJsonLayer({
+            id: 'connections-layer',
+            data: connections,
+            getLineColor: [255, 255, 0],
+            getLineWidth: 2,
+            pickable: true,
+            onHover: info => console.log(info)
         })
     ];
 
@@ -117,7 +197,6 @@ function App() {
             controller={true}
         >
             <Map reuseMaps mapStyle={MAP_STYLE} />
-            {renderTooltip({ hoverInfo })}
         </DeckGL>
     );
 }
