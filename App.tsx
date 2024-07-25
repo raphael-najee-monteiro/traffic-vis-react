@@ -5,8 +5,8 @@ import { GeoJsonLayer } from '@deck.gl/layers';
 import { Map } from 'react-map-gl/maplibre';
 import { load } from '@loaders.gl/core';
 import { CSVLoader } from '@loaders.gl/csv';
-import { Feature, LineString, Point, GeoJsonProperties } from 'geojson';
-import { MapViewState } from "deck.gl";
+import { Feature, Point, LineString, GeoJsonProperties } from 'geojson';
+import { MapViewState } from 'deck.gl';
 
 // Define the URLs to the CSV files
 const DATA_URLS = {
@@ -17,9 +17,9 @@ const DATA_URLS = {
 };
 
 const INITIAL_VIEW_STATE: MapViewState = {
-    latitude: 47.4,
+    latitude: 47.38,
     longitude: 8.55,
-    zoom: 13,
+    zoom: 11,
     minZoom: 1,
     maxZoom: 20
 };
@@ -93,6 +93,7 @@ function convertNodesToGeoJSON(nodes: Node[]): Feature<Point, GeoJsonProperties>
 }
 
 function convertLinesToGeoJSON(lines: any[], key: string): Feature<LineString, GeoJsonProperties>[] {
+    console.log(lines[2][key]);
     return lines.map(line => ({
         type: 'Feature',
         geometry: {
@@ -101,7 +102,7 @@ function convertLinesToGeoJSON(lines: any[], key: string): Feature<LineString, G
                 .replace('LINESTRING (', '')
                 .replace(')', '')
                 .split(',')
-                .map(pair => pair.split(' ').map(Number))
+                .map(pair => pair.split(' ').map(Number)).reverse()
         },
         properties: {
             ...line
@@ -124,7 +125,7 @@ function App() {
                 load(DATA_URLS.CONNECTIONS, CSVLoader)
             ]);
 
-            const parsedNodes = (nodesData as unknown as Node[]).map((row: Node) => ({
+            const parsedNodes = (nodesData.data as Node[]).map((row: Node) => ({
                 node_id: row.node_id,
                 lon: parseFloat(String(row.lon)),
                 lat: parseFloat(String(row.lat)),
@@ -133,24 +134,25 @@ function App() {
             }));
             setNodes(convertNodesToGeoJSON(parsedNodes));
 
-            const parsedEdges = (edgesData as unknown as Edge[]).map((row: Edge) => ({
+            const parsedEdges = (edgesData.data as Edge[]).map((row: Edge) => ({
                 ...row,
                 line_geom: row.line_geom
             }));
             setEdges(convertLinesToGeoJSON(parsedEdges, 'line_geom'));
 
-            const parsedLanes = (lanesData as unknown as Lane[]).map((row: Lane) => ({
+            const parsedLanes = (lanesData.data as Lane[]).map((row: Lane) => ({
                 ...row,
                 line_geom: row.line_geom
             }));
             setLanes(convertLinesToGeoJSON(parsedLanes, 'line_geom'));
 
-            const parsedConnections = (connectionsData as unknown as Connection[]).map((row: Connection) => ({
+            const parsedConnections = (connectionsData.data as Connection[]).map((row: Connection) => ({
                 ...row,
                 line_geom: row.line_geom
             }));
             setConnections(convertLinesToGeoJSON(parsedConnections, 'line_geom'));
         }
+
         fetchData();
     }, []);
 
@@ -192,7 +194,8 @@ function App() {
 
     return (
         <DeckGL
-            layers={layers}
+            //layeres={layers}
+            layers={layers[0]}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
         >
