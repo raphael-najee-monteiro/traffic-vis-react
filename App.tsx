@@ -80,6 +80,8 @@ function App() {
     const [showLanes, setShowLanes] = useState(false);
     const [showConnections, setShowConnections] = useState(false);
 
+    const [sliderValue, setSliderValue] = useState(18000); // Default to 5 AM (in seconds)
+
     useEffect(() => {
         async function fetchData() {
             const [nodesData, edgesData, lanesData, connectionsData, edgeData] = await Promise.all([
@@ -132,7 +134,7 @@ function App() {
 
             if (type === 'Edge') {
                 const edgeId = clickProperties.edge_id;
-                const edgeDataProperties = edgeData.find(data => data.edge_id === edgeId);
+                const edgeDataProperties = edgeData.find(data => data.edge_id === edgeId && data.interval_begin <= sliderValue && data.interval_end >= sliderValue);
 
                 if (edgeDataProperties) {
                     clickProperties = { ...clickProperties, ...edgeDataProperties };
@@ -228,10 +230,38 @@ function App() {
 
             {infoBoxVisible && (
                 <div className="infoBox">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                         <h3>{elementType} Information</h3>
                         <button onClick={() => setInfoBoxVisible(false)}>Close</button>
                     </div>
+                    {elementType === 'Edge' && (
+                        <div className="sliderContainer">
+                            <input
+                                type="range"
+                                min="18000"
+                                max="25200"
+                                step="900"
+                                value={sliderValue}
+                                onChange={(e) => {
+                                    const newValue = Number(e.target.value);
+                                    setSliderValue(newValue);
+                                    // Update clickInfo with new data for the selected time
+                                    const updatedEdgeData = edgeData.find(data =>
+                                        data.edge_id === clickInfo.edge_id &&
+                                        data.interval_begin <= newValue &&
+                                        data.interval_end >= newValue
+                                    );
+                                    if (updatedEdgeData) {
+                                        setClickInfo(prev => ({
+                                            ...prev,
+                                            ...updatedEdgeData
+                                        }));
+                                    }
+                                }}
+                            />
+                            <div>Time: {new Date(sliderValue * 1000).toISOString().substr(11, 5)}</div>
+                        </div>
+                    )}
                     <ul>
                         {Object.entries(clickInfo).map(([key, value]) => (
                             <li key={key}>
@@ -247,5 +277,5 @@ function App() {
 
 export function renderToDOM(container) {
     const root = createRoot(container);
-    root.render(<App />);
+    root.render(<App/>);
 }
