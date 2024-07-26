@@ -55,8 +55,9 @@ function App() {
             />
 
             <div className="checkBoxGroup">
+                <h3>Layers</h3>
                 {Object.keys(visibility).map(layer => (
-                    <label key={layer} style={{ marginLeft: layer === 'nodes' ? 0 : '10px' }}>
+                    <label className="checkbox-label">
                         <input
                             type="checkbox"
                             checked={visibility[layer]}

@@ -1,0 +1,146 @@
+body {
+    margin: 0;
+    font-family: sans-serif;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.checkBoxGroup {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 20px;
+    color: #333333;
+    background: white;
+    border-radius: 8px;
+    box-shadow: rgba(149, 157, 165, 0.2) 0 8px 24px;
+}
+
+.checkBoxGroup>h3{
+    color: #007bff;
+    margin-top: 0;
+}
+
+.infoBox {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    background: #ffffff; /* White background */
+    color: #333333; /* Dark text color for contrast */
+    padding: 16px;
+    width: 350px; /* Slightly wider for better content fit */
+    font-size: 14px; /* Larger font size for better readability */
+    border-radius: 8px;
+    box-shadow: rgba(0, 0, 0, 0.1) 0 4px 8px; /* Softer shadow */
+}
+
+.infoBox h3 {
+    margin: 0;
+    font-size: 18px; /* Larger font size for the header */
+    color: #007bff; /* Blue color for the header text */
+}
+
+.infoBox button {
+    background: #007bff; /* Blue button */
+    border: none;
+    color: #ffffff; /* White text color */
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease;
+}
+
+.infoBox button:hover {
+    background: #0056b3; /* Darker blue on hover */
+}
+
+.sliderContainer {
+    margin: 16px 0;
+    text-align: center;
+}
+
+.sliderContainer input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    background: #f0f0f0; /* Light gray track color */
+    height: 4px; /* Thickness of the track */
+    border-radius: 2px; /* Rounded corners of the track */
+}
+
+.sliderContainer input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #007bff; /* Blue color for the thumb */
+    border-radius: 50%; /* Rounded thumb */
+    cursor: pointer;
+}
+
+.sliderContainer input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #007bff; /* Blue color for the thumb */
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.sliderContainer div {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #333; /* Dark text color for time display */
+}
+
+.data-points {
+    margin-top: 12px;
+    max-height: 500px; /* Fixed height for scrolling */
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.data-points li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0; /* Light gray divider line */
+}
+
+.data-points li:last-child {
+    border-bottom: none; /* Remove divider from last item */
+}
+
+.data-points strong {
+    color: #007bff; /* Blue color for labels */
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center; /* Center text vertically */
+    margin: 4px 0; /* Add some space between checkboxes */
+}
+
+input[type="checkbox"] {
+    -webkit-appearance: none; /* Remove default styling */
+    appearance: none;
+    background: #fff; /* White background */
+    border: 2px solid #007bff; /* Blue border */
+    border-radius: 4px; /* Rounded corners */
+    width: 20px; /* Size of the checkbox */
+    height: 20px;
+    cursor: pointer;
+    position: relative;
+}
+
+input[type="checkbox"]:checked::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #007bff; /* Blue background when checked */
+    border-radius: 2px;
+}
+
+input[type="checkbox"]:checked {
+    border-color: #007bff; /* Blue border when checked */
+}
