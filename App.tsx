@@ -4,6 +4,7 @@ import { DeckGLMap } from './components/DeckGLMap';
 import { InfoBox } from './components/InfoBox';
 import { useMapData } from './hooks/getData';
 import { INITIAL_VIEW_STATE } from './utils/constants';
+import {LayerBox} from "./components/layerBox";
 
 function App() {
     const { nodes, edges, lanes, connections, edgeData } = useMapData();
@@ -54,18 +55,10 @@ function App() {
                 initialViewState={INITIAL_VIEW_STATE}
             />
 
-            <div className="checkBoxGroup">
-                {Object.keys(visibility).map(layer => (
-                    <label key={layer} style={{ marginLeft: layer === 'nodes' ? 0 : '10px' }}>
-                        <input
-                            type="checkbox"
-                            checked={visibility[layer]}
-                            onChange={() => handleLayerVisibilityChange(layer)}
-                        />
-                        {layer.charAt(0).toUpperCase() + layer.slice(1)}
-                    </label>
-                ))}
-            </div>
+            <LayerBox
+                visibility={visibility}
+                onChange={handleLayerVisibilityChange}
+            />
 
             {infoBoxVisible && (
                 <InfoBox
